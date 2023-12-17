@@ -64,9 +64,11 @@ Object.assign(textures[0], {
 	anisotropy: renderer.capabilities.getMaxAnisotropy(),
 	matrixAutoUpdate: false,
 })
-textures[0].matrix.elements[3] = .4; //skew
 
 textures[1] = textures[0].clone();
+textures[0].matrix.elements[3] = .4; //skew
+textures[1].matrix.elements[3] = -.5; //skew
+
 material1.emissiveMap = textures[1];
 
 textures[1].matrix.elements[4] = small;
@@ -111,7 +113,7 @@ renderer.setAnimationLoop(function(t){
 	//const skew = hover[0]? .5 : hover[1] ? -.4 : .3;
 
 	spheres.children.forEach((sph, i)=>{
-		const v = [7, 8][i] * .0001 * (hover[i] || -1),
+		const v = [7, -8][i] * .0001 * (hover[i] || -1),
 			ro = sph.rotation.y,
 			reaching = dt * .002,
 			targ = targs[i] = (targs[i] ?? ro) + dt*v;
@@ -134,7 +136,7 @@ canvas.onmousemove=canvas.onpointerdown = e=>{
 
 	hover = [0, 0]
 	if (test(sphere1.position.clone(), small)) hover[1] = 1;
-	else if (test(sphere.position.clone(), 1)) hover[0] = 1;
+	if (test(sphere.position.clone(), 1)) hover[0] = 1;
 }
 window.addEventListener('touchstart', e=> {if (e.target != canvas) hover = [0, 0]});
 
