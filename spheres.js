@@ -22,7 +22,7 @@ gradient.addColorStop(0.75, colors[0]);
 gradient.addColorStop(1, colors[1]);
 
 ctx.strokeStyle = gradient;
-ctx.lineWidth = 3
+ctx.lineWidth = 3.5
 
 for (let y = 32; y < 1024; y+=40) {
 	ctx.moveTo(0, y);
@@ -33,7 +33,7 @@ ctx.stroke();
 var texTransform;
 
 const geomtnry = new THREE.IcosahedronGeometry(1, 24).rotateX(PI),
-	texture = new THREE.Texture( canvSrc, 300, 1000, 1000),
+	textures = [new THREE.Texture( canvSrc, 300, 1000, 1000)],
 	material = new THREE.MeshStandardMaterial({
 		transparent: true,
 		opacity: .2,
@@ -41,7 +41,7 @@ const geomtnry = new THREE.IcosahedronGeometry(1, 24).rotateX(PI),
 		roughness: .6,
 		metalness: .7,
 		color: '#777',
-		emissiveMap: texture,
+		emissiveMap: textures[0],
 	}),
 	material1 = material.clone(),
 	canvas = document.querySelector('canvas.spheres'),
@@ -58,24 +58,24 @@ const geomtnry = new THREE.IcosahedronGeometry(1, 24).rotateX(PI),
 
 //renderer.outputEncoding = THREE.LinearSRGBColorSpace;
 
-Object.assign(texture, {
+Object.assign(textures[0], {
 	colorSpace: 'srgb',
 	needsUpdate: true,
 	anisotropy: renderer.capabilities.getMaxAnisotropy(),
 	matrixAutoUpdate: false,
 })
-texture.matrix.elements[3] = .4; //skew
+textures[0].matrix.elements[3] = .4; //skew
 
-const texture1 = texture.clone();
-material1.emissiveMap = texture1;
+textures[1] = textures[0].clone();
+material1.emissiveMap = textures[1];
 
-texture1.matrix.elements[4] = small;
+textures[1].matrix.elements[4] = small;
 
 sphere1.scale.multiplyScalar(small);
 sphere1.position.y=1 + small;
-sphere1.rotateY(-1.7)
+sphere1.rotation.y  = -1.7;
 
-sphere.scale.y=1.05
+sphere.scale.y=1.03
 
 camera.position.set(0,0,5);
 camera.lookAt(0,0,0);
@@ -83,29 +83,59 @@ camera.lookAt(0,0,0);
 light.position.set(1, -.2, -.8);
 hlight.position.set(1, -.2, 0);
 
-spheres.position.set(.1, -.2, 0);
+spheres.position.set(.1, -.15, 0);
 spheres.rotation.set(.8, 0 ,.53);
 
-let t0=performance.now();
+let t0=performance.now(), hover=[], targs=[];
+
 renderer.setAnimationLoop(function(t){
 	if (!scene) return;
 	if (cashed.dpr!=devicePixelRatio) renderer.setPixelRatio(cashed.dpr=devicePixelRatio);
-	const rect = canvas.getBoundingClientRect()
+	const rect = canvas.getBoundingClientRect(),
+		{top, bottom, height} = rect;
 	if (cashed.w!=rect.width || cashed.h!=rect.height) {
 		renderer.setSize(cashed.w=rect.width, cashed.h=rect.height, false);
 		camera.aspect=rect.width/rect.height;
 		camera.updateProjectionMatrix();
 	}
+	const {scrollTop, scrollHeight, clientHeight} = document.scrollingElement;
 
-	const dt = Math.max(100, t-t0);
+	if (bottom<0 || top > clientHeight) return;
+
+	camera.position.y = (top + height/2 -clientHeight/2)/clientHeight*2;
+	camera.lookAt(0, 0, -1)
+
+	const dt = Math.min(100, t-t0);
 	t0 = t;
 
-	const ro = -dt * .0002;
-	sphere.rotateY(ro*.9);
-	sphere1.rotateY(ro);
-	//texture1.matrix.elements[4] = small+.03*Math.sin(.001*t);
+	//const skew = hover[0]? .5 : hover[1] ? -.4 : .3;
+
+	spheres.children.forEach((sph, i)=>{
+		const v = [7, 8][i] * .0001 * (hover[i] || -1),
+			ro = sph.rotation.y,
+			reaching = dt * .002,
+			targ = targs[i] = (targs[i] ?? ro) + dt*v;
+
+		sph.rotation.y += (targ - ro) * reaching;
+	})
 
 	renderer.render(scene, camera)
 })
 
-Object.assign(window, {geomtnry, texture, texture1, material, canvas, renderer, camera, sphere, spheres, light, hlight, scene, THREE, canvSrc})
+const raycaster = new THREE.Raycaster(),
+	test = (pos, r) => raycaster.ray.distanceSqToPoint(spheres.localToWorld(pos.clone() )) < r*r;
+
+canvas.onmousemove=canvas.onpointerdown = e=>{
+
+	raycaster.setFromCamera(new THREE.Vector2(
+		e.offsetX / cashed.w * 2 - 1,
+		1 - e.offsetY / cashed.h * 2
+	), camera);
+
+	hover = [0, 0]
+	if (test(sphere1.position.clone(), small)) hover[1] = 1;
+	else if (test(sphere.position.clone(), 1)) hover[0] = 1;
+}
+window.addEventListener('touchstart', e=> {if (e.target != canvas) hover = [0, 0]});
+
+Object.assign(window, {geomtnry, textures, material, canvas, renderer, camera, sphere, spheres, light, hlight, scene, THREE, canvSrc})
