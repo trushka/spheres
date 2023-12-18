@@ -1,5 +1,7 @@
 const colors = ['#000', '#FF4FA1', '#8A4FFF'],
-	small = .4,
+	canvas = document.querySelector('canvas.spheres'),
+	small = .38,
+
 	PI = Math.PI;
 
 import * as THREE from 'https://unpkg.com/three@0.159.0/build/three.module.min.js';
@@ -9,6 +11,7 @@ function vec3(...args) {return new THREE.Vector3(...args)};
 THREE.ShaderChunk.emissivemap_fragment = THREE.ShaderChunk.emissivemap_fragment.replace('#endif', `
 	diffuseColor.a = mix(diffuseColor.a, 1., emissiveColor.a);
 	diffuseColor.rgb *= emissiveColor.rgb + 1.- emissiveColor.a;
+	//roughnessFactor += -emissiveColor.a * .1;
 #endif`)
 
 const canvSrc = document.createElement('canvas'),
@@ -35,26 +38,25 @@ ctx.stroke();
 
 var texTransform;
 
-const geomtnry = new THREE.IcosahedronGeometry(1, 24).rotateX(PI),
+const geomtnry = new THREE.IcosahedronGeometry(1, 24),//.rotateX(PI),
 	textures = [new THREE.Texture( canvSrc, 300, 1000, 1000)],
 	material = new THREE.MeshStandardMaterial({
 		transparent: true,
-		opacity: .2,
+		opacity: .22,
 		emissive: '#fff',
 		roughness: .6,
-		metalness: .6,
-		color: '#777',
+		metalness: .7,
+		color: '#999',
 		emissiveMap: textures[0],
 	}),
 	material1 = material.clone(),
-	canvas = document.querySelector('canvas.spheres'),
 	renderer = new THREE.WebGLRenderer( {alpha:true, antialias: true, canvas:canvas} ),
 	camera=new THREE.PerspectiveCamera( 40, 1, .1, 100 ),
 
 	sphere = new THREE.Mesh(geomtnry, material),
 	sphere1 = new THREE.Mesh(geomtnry, material1),
-	hlight = new THREE.HemisphereLight('#fff', 0),
-	light = new THREE.DirectionalLight(),
+	hlight = new THREE.HemisphereLight('#fff', '#fff'),
+	light = new THREE.DirectionalLight('#fff', 0.7),
 	spheres = new THREE.Group().add(sphere, sphere1),
 	scene = new THREE.Scene().add(spheres, light, hlight),
 	cashed={};
@@ -71,6 +73,7 @@ Object.assign(textures[0], {
 textures[1] = textures[0].clone();
 textures[0].matrix.elements[3] = .4; //skew
 textures[1].matrix.elements[3] = -.5; //skew
+textures[1].matrix.elements[7] = -.007; //offsetY
 
 material1.emissiveMap = textures[1];
 
@@ -79,6 +82,7 @@ textures[1].matrix.elements[4] = small;
 sphere1.scale.multiplyScalar(small);
 sphere1.position.y=1 + small;
 sphere1.rotation.y  = -1.7;
+//sphere1.scale.y *= -1
 
 sphere.scale.y=1.03
 
@@ -86,12 +90,13 @@ camera.position.set(0,0,5);
 camera.lookAt(0,0,0);
 
 light.position.set(1, -.2, -.8);
-hlight.position.set(1, -.2, 0);
+hlight.position.set(1, 0.6, 0.2);
+hlight.groundColor.multiplyScalar(-.3)
 
 spheres.position.set(.1, -.15, 0);
 spheres.rotation.set(.8, 0 ,.53);
 
-let t0=performance.now(), hover=[0, 0], targs=[];
+let t0=performance.now(), hover=[0, 0], targs=[], speeds = [0, 0];
 
 renderer.setAnimationLoop(function(t){
 	if (!scene) return;
@@ -122,7 +127,7 @@ renderer.setAnimationLoop(function(t){
 			reaching = dt * .002,
 			targ = targs[i] = (targs[i] ?? ro) + dt*v;
 
-		sph.rotation.y += (targ - ro) * reaching;
+		sph.rotation.y += speeds[i] = (targ - ro) * reaching;
 	})
 
 	renderer.render(scene, camera)
