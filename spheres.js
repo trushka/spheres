@@ -6,7 +6,10 @@ import * as THREE from 'https://unpkg.com/three@0.159.0/build/three.module.min.j
 
 function vec3(...args) {return new THREE.Vector3(...args)};
 
-THREE.ShaderChunk.emissivemap_fragment = THREE.ShaderChunk.emissivemap_fragment.replace('#endif', '\tdiffuseColor.a = mix(diffuseColor.a, 1., emissiveColor.a);\n#endif')
+THREE.ShaderChunk.emissivemap_fragment = THREE.ShaderChunk.emissivemap_fragment.replace('#endif', `
+	diffuseColor.a = mix(diffuseColor.a, 1., emissiveColor.a);
+	diffuseColor.rgb *= emissiveColor.rgb + 1.- emissiveColor.a;
+#endif`)
 
 const canvSrc = document.createElement('canvas'),
 	ctx = canvSrc.getContext('2d'),
@@ -39,7 +42,7 @@ const geomtnry = new THREE.IcosahedronGeometry(1, 24).rotateX(PI),
 		opacity: .2,
 		emissive: '#fff',
 		roughness: .6,
-		metalness: .7,
+		metalness: .6,
 		color: '#777',
 		emissiveMap: textures[0],
 	}),
@@ -50,7 +53,7 @@ const geomtnry = new THREE.IcosahedronGeometry(1, 24).rotateX(PI),
 
 	sphere = new THREE.Mesh(geomtnry, material),
 	sphere1 = new THREE.Mesh(geomtnry, material1),
-	hlight = new THREE.HemisphereLight('#eee', 0),
+	hlight = new THREE.HemisphereLight('#fff', 0),
 	light = new THREE.DirectionalLight(),
 	spheres = new THREE.Group().add(sphere, sphere1),
 	scene = new THREE.Scene().add(spheres, light, hlight),
@@ -88,7 +91,7 @@ hlight.position.set(1, -.2, 0);
 spheres.position.set(.1, -.15, 0);
 spheres.rotation.set(.8, 0 ,.53);
 
-let t0=performance.now(), hover=[], targs=[];
+let t0=performance.now(), hover=[0, 0], targs=[];
 
 renderer.setAnimationLoop(function(t){
 	if (!scene) return;
@@ -113,6 +116,7 @@ renderer.setAnimationLoop(function(t){
 	//const skew = hover[0]? .5 : hover[1] ? -.4 : .3;
 
 	spheres.children.forEach((sph, i)=>{
+		hover[i]*=hover[i];
 		const v = [7, -8][i] * .0001 * (hover[i] || -1),
 			ro = sph.rotation.y,
 			reaching = dt * .002,
@@ -134,10 +138,9 @@ canvas.onmousemove=canvas.onpointerdown = e=>{
 		1 - e.offsetY / cashed.h * 2
 	), camera);
 
-	hover = [0, 0]
-	if (test(sphere1.position.clone(), small)) hover[1] = 1;
-	if (test(sphere.position.clone(), 1)) hover[0] = 1;
+	hover[1] = +test(sphere1.position.clone(), small) || hover[1]*.999999999999;
+	hover[0] = +test(sphere.position.clone(), 1) || hover[0]*.999999999999;
 }
-window.addEventListener('touchstart', e=> {if (e.target != canvas) hover = [0, 0]});
+window.addEventListener('pointerdown', e=> {if (e.target != canvas) hover = [0, 0]});
 
 Object.assign(window, {geomtnry, textures, material, canvas, renderer, camera, sphere, spheres, light, hlight, scene, THREE, canvSrc})
