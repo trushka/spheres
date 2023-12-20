@@ -48,6 +48,7 @@ const geomtnry = new THREE.IcosahedronGeometry(1, 24),//.rotateX(PI),
 		metalness: .7,
 		color: '#999',
 		emissiveMap: textures[0],
+		emissiveIntensity: 1.1
 	}),
 	material1 = material.clone(),
 	renderer = new THREE.WebGLRenderer( {alpha:true, antialias: true, canvas:canvas} ),
@@ -82,7 +83,6 @@ textures[1].matrix.elements[4] = small;
 sphere1.scale.multiplyScalar(small);
 sphere1.position.y=1 + small;
 sphere1.rotation.y  = -1.7;
-//sphere1.scale.y *= -1
 
 sphere.scale.y=1.03
 
@@ -96,7 +96,7 @@ hlight.groundColor.multiplyScalar(-.3)
 spheres.position.set(.1, -.15, 0);
 spheres.rotation.set(.8, 0 ,.53);
 
-let t0=performance.now(), hover=[0, 0], targs=[], speeds = [0, 0];
+let t0=performance.now(), hover=[0, 0], targs=[];
 
 renderer.setAnimationLoop(function(t){
 	if (!scene) return;
@@ -112,10 +112,12 @@ renderer.setAnimationLoop(function(t){
 
 	if (bottom<0 || top > clientHeight) return;
 
-	camera.position.y = (top + height/2 -clientHeight/2)/clientHeight*2;
-	camera.lookAt(0, 0, -1)
+	camera.position.y = (top + height/2 -clientHeight/2)/clientHeight*2.4;
+	camera.lookAt(0, 0, -.2)
 
-	const dt = Math.min(100, t-t0);
+	const dt = Math.min(100, t-t0),
+		reaching = dt * .002,
+		{opacity} = canvas.style;
 	t0 = t;
 
 	//const skew = hover[0]? .5 : hover[1] ? -.4 : .3;
@@ -124,12 +126,12 @@ renderer.setAnimationLoop(function(t){
 		hover[i]*=hover[i];
 		const v = [7, -8][i] * .0001 * (hover[i] || -1),
 			ro = sph.rotation.y,
-			reaching = dt * .002,
 			targ = targs[i] = (targs[i] ?? ro) + dt*v;
 
-		sph.rotation.y += speeds[i] = (targ - ro) * reaching;
+		sph.rotation.y += (targ - ro) * reaching;
 	})
 
+	canvas.style.opacity = +opacity + (1 - opacity) * reaching;
 	renderer.render(scene, camera)
 })
 
@@ -143,9 +145,10 @@ canvas.onmousemove=canvas.onpointerdown = e=>{
 		1 - e.offsetY / cashed.h * 2
 	), camera);
 
-	hover[1] = +test(sphere1.position.clone(), small) || hover[1]*.999999999999;
-	hover[0] = +test(sphere.position.clone(), 1) || hover[0]*.999999999999;
+	hover[1] = +test(sphere1.position.clone(), small) || hover[1]*.999999999994;
+	hover[0] = +test(sphere.position.clone(), 1) || hover[0]*.999999999994;
 }
+canvas.style.opacity = 0;
 window.addEventListener('pointerdown', e=> {if (e.target != canvas) hover = [0, 0]});
 
 Object.assign(window, {geomtnry, textures, material, canvas, renderer, camera, sphere, spheres, light, hlight, scene, THREE, canvSrc})
